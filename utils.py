@@ -1,7 +1,5 @@
 # %% [code]
-from tensorflow.python.training.tracking import base
 import numpy as np
-from PIL import Image
 import numpy as np
 from keras.layers import DepthwiseConv2D
 
