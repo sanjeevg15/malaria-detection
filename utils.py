@@ -80,3 +80,4 @@ def add_noise(noise_type,image,params=[0,0.1]):
         noisy_img = 255*noisy_img
         noisy_img = noisy_img.astype("uint8")
         return noisy_img
+# %%
