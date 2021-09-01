@@ -22,6 +22,10 @@ class FGSMAttacker():
             loss_function: A function that returns the loss given labels and predictions
             epsilon: Magnitude of perturbation
             num_iters: Iteratively applies the FGSM perturbation num_iters times
+            ======
+            Returns:
+            images (np.ndarray): Images perturbed according to FGSM
+            delta_total (np.ndarray): The total perturbation i.e. output image - input image
         '''
 
         delta_total = np.zeros(np.shape(images))
