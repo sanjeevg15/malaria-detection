@@ -8,225 +8,114 @@ from matplotlib import pyplot as plt
 import pandas as pd
 import requests
 from tqdm import tqdm
+import numpy as np
+import numpy as np
+from keras.layers import DepthwiseConv2D
+import tensorflow as tf
 
+kernel_weights = np.array([[1,2,1],[2,4,2],[1,2,1]])/16
+kernel_weights = np.expand_dims(kernel_weights, axis=-1)
+kernel_weights = np.repeat(kernel_weights, 3, axis=-1) # apply the same filter on all the input channels
+kernel_weights = np.expand_dims(kernel_weights, axis=-1)  # for shape compatibility reasons
 
-def perturb_image(xs, img):
-    # If this function is passed just one perturbation vector,
-    # pack it in a list to keep the computation the same
-    if xs.ndim < 2:
-        xs = np.array([xs])
+gaussian_blur = DepthwiseConv2D(3, use_bias=False, weights=[kernel_weights], padding='same')
 
-    # Copy the image n == len(xs) times so that we can 
-    # create n new perturbed images
-    tile = [len(xs)] + [1] * (xs.ndim + 1)
-    imgs = np.tile(img, tile)
+def add_noise(noise_type,image,params=[0,0.1]):
 
-    # Make sure to floor the members of xs as int types
-    xs = xs.astype(int)
+    '''Parameters
+    ----------
+    image : ndarray
+        Input image data. Will be converted to float.
+    mode : str
+        One of the following strings, selecting the type of noise to add:
 
-    for x, img in zip(xs, imgs):
-        # Split x into an array of 5-tuples (perturbation pixels)
-        # i.e., [[x,y,r,g,b], ...]
-        pixels = np.split(x, len(x) // 5)
-        for pixel in pixels:
-            # At each pixel's x,y position, assign its rgb value
-            x_pos, y_pos, *rgb = pixel
-            img[x_pos, y_pos] = rgb
+        'gaussian'     Gaussian-distributed additive noise.
+        'poisson'   Poisson-distributed noise generated from the data.
+        's&p'       Replaces random pixels with 0 or 1.
+        'speckle'   Multiplicative noise using out = image + n*image,where
+                    n is uniform noise with specified mean & variance.
+    '''
 
-    return imgs
+    image2 = np.copy(image)
+    if np.max(image2) > 1:
+        image2 = image2/255
+    
+    
+    if noise_type == "gaussian":
+        row,col,ch= image2.shape
+        mean = params[0]
+        var = params[1]
+        sigma = var**0.5
+        gauss = np.random.normal(mean,sigma,(row,col,ch))
+        gauss = gauss.reshape(row,col,ch)
+        noisy_img = image2 + gauss
+        noisy_img = 255*noisy_img
+        noisy_img = noisy_img.astype("uint8")
+        return noisy_img
+    
+    elif noise_type == "s&p":
+        row,col,ch = image2.shape
+        s_vs_p = 0.5
+        amount = 0.004
+        out = np.copy(image2)
+        # Salt mode
+        num_salt = np.ceil(amount * image2.size * s_vs_p)
+        coords = [np.random.randint(0, i - 1, int(num_salt))
+          for i in image2.shape]
+        out[coords] = 1
 
+        # Pepper mode
+        num_pepper = np.ceil(amount* image2.size * (1. - s_vs_p))
+        coords = [np.random.randint(0, i - 1, int(num_pepper))
+          for i in image2.shape]
+        out[coords] = 0
+        return out
+    
+    elif noise_type == "poisson":
+        vals = len(np.unique(image2))
+        vals = 2 ** np.ceil(np.log2(vals))
+        noisy_img = np.random.poisson(image2 * vals) / float(vals)
+        noisy_img = 255*noisy_img
+        noisy_img = noisy_img.astype("uint8")
+        return noisy_img
+    
+    elif noise_type =="speckle":
+        mean = params[0]
+        var = params[1]
+        row,col,ch = image2.shape
+        gauss = np.random.randn(row,col,ch)
+        gauss = gauss.reshape(row,col,ch)   
+        gauss = gauss*var + mean
+        noisy_img = image2 + image2*gauss
+        noisy_img = 255*noisy_img
+        noisy_img = noisy_img.astype("uint8")
+        return noisy_img
 
-def plot_image(image, label_true=None, class_names=None, label_pred=None):
-    if image.ndim == 4 and image.shape[0] == 1:
-        image = image[0]
+def get_acc_loss(predictions):
+    generate_on_models = list(predictions.keys())
+    evaluate_on_models = list(predictions[list(predictions.keys())[0]][list(predictions[generate_on_models[0]].keys())[0]].keys()) 
+    evaluate_on_models.remove('gt')
+    print(evaluate_on_models)
+    mean_loss = {}
+    median_loss = {}
+    acc = {}
+    for model1_name in generate_on_models:
+        labels = [[0.0, 1.0] if predictions[model1_name][image_path]['gt'] == 1 else [1.0, 0.0] for image_path in predictions[model1_name].keys()]
+        temp_ind_losses = []
+        temp_acc = []
+        
+        for model2_name in evaluate_on_models:
+            preds = [predictions[model1_name][image_path][model2_name] for image_path in predictions[model1_name].keys()]
+            temp_ind_losses.append(tf.losses.binary_crossentropy(labels, preds).numpy())
+            temp_acc.append(get_accuracy(labels, preds))
+        mean_loss[model1_name] = [np.mean(i) for i in temp_ind_losses]
+        median_loss[model1_name] = [np.median(i) for i in temp_ind_losses]
+        acc[model1_name] = temp_acc
+    return acc, mean_loss, median_loss
 
-    plt.grid()
-    plt.imshow(image.astype(np.uint8))
-
-    # Show true and predicted classes
-    if label_true is not None and class_names is not None:
-        labels_true_name = class_names[label_true]
-        if label_pred is None:
-            xlabel = "True: " + labels_true_name
-        else:
-            # Name of the predicted class
-            labels_pred_name = class_names[label_pred]
-
-            xlabel = "True: " + labels_true_name + "\nPredicted: " + labels_pred_name
-
-        # Show the class on the x-axis
-        plt.xlabel(xlabel)
-
-    plt.xticks([])  # Remove ticks from the plot
-    plt.yticks([])
-    plt.show()  # Show the plot
-
-
-def plot_images(images, labels_true, class_names, labels_pred=None,
-                confidence=None, titles=None):
-    assert len(images) == len(labels_true)
-
-    # Create a figure with sub-plots
-    fig, axes = plt.subplots(3, 3, figsize=(10, 10))
-
-    # Adjust the vertical spacing
-    hspace = 0.2
-    if labels_pred is not None:
-        hspace += 0.2
-    if titles is not None:
-        hspace += 0.2
-
-    fig.subplots_adjust(hspace=hspace, wspace=0.0)
-
-    for i, ax in enumerate(axes.flat):
-        # Fix crash when less than 9 images
-        if i < len(images):
-            # Plot the image
-            ax.imshow(images[i])
-
-            # Name of the true class
-            labels_true_name = class_names[labels_true[i]]
-
-            # Show true and predicted classes
-            if labels_pred is None:
-                xlabel = "True: " + labels_true_name
-            else:
-                # Name of the predicted class
-                labels_pred_name = class_names[labels_pred[i]]
-
-                xlabel = "True: " + labels_true_name + "\nPred: " + labels_pred_name
-                if (confidence is not None):
-                    xlabel += " (" + "{0:.1f}".format(confidence[i] * 100) + "%)"
-
-            # Show the class on the x-axis
-            ax.set_xlabel(xlabel)
-
-            if titles is not None:
-                ax.set_title(titles[i])
-
-        # Remove ticks from the plot
-        ax.set_xticks([])
-        ax.set_yticks([])
-
-    # Show the plot
-    plt.show()
-
-
-def plot_model(model_details):
-    # Create sub-plots
-    fig, axs = plt.subplots(1, 2, figsize=(15, 5))
-
-    # Summarize history for accuracy
-    axs[0].plot(range(1, len(model_details.history['acc']) + 1), model_details.history['acc'])
-    axs[0].plot(range(1, len(model_details.history['val_acc']) + 1), model_details.history['val_acc'])
-    axs[0].set_title('Model Accuracy')
-    axs[0].set_ylabel('Accuracy')
-    axs[0].set_xlabel('Epoch')
-    axs[0].set_xticks(np.arange(1, len(model_details.history['acc']) + 1), len(model_details.history['acc']) / 10)
-    axs[0].legend(['train', 'val'], loc='best')
-
-    # Summarize history for loss
-    axs[1].plot(range(1, len(model_details.history['loss']) + 1), model_details.history['loss'])
-    axs[1].plot(range(1, len(model_details.history['val_loss']) + 1), model_details.history['val_loss'])
-    axs[1].set_title('Model Loss')
-    axs[1].set_ylabel('Loss')
-    axs[1].set_xlabel('Epoch')
-    axs[1].set_xticks(np.arange(1, len(model_details.history['loss']) + 1), len(model_details.history['loss']) / 10)
-    axs[1].legend(['train', 'val'], loc='best')
-
-    # Show the plot
-    plt.show()
-
-
-def visualize_attack(df, class_names):
-    _, (x_test, _) = cifar10.load_data()
-
-    results = df[df.success].sample(9)
-
-    z = zip(results.perturbation, x_test[results.image])
-    images = np.array([perturb_image(p, img)[0]
-                       for p, img in z])
-
-    labels_true = np.array(results.true)
-    labels_pred = np.array(results.predicted)
-    titles = np.array(results.model)
-
-    # Plot the first 9 images.
-    plot_images(images=images,
-                labels_true=labels_true,
-                class_names=class_names,
-                labels_pred=labels_pred,
-                titles=titles)
-
-
-def attack_stats(df, models, network_stats):
-    stats = []
-    for model in models:
-        val_accuracy = np.array(network_stats[network_stats.name == model.name].accuracy)[0]
-        m_result = df[df.model == model.name]
-        pixels = list(set(m_result.pixels))
-
-        for pixel in pixels:
-            p_result = m_result[m_result.pixels == pixel]
-            success_rate = len(p_result[p_result.success]) / len(p_result)
-            stats.append([model.name, val_accuracy, pixel, success_rate])
-
-    return pd.DataFrame(stats, columns=['model', 'accuracy', 'pixels', 'attack_success_rate'])
-
-
-def evaluate_models(models, x_test, y_test):
-    correct_imgs = []
-    network_stats = []
-    for model in models:
-        print('Evaluating', model.name)
-
-        predictions = model.predict(x_test)
-
-        correct = [[model.name, i, label, np.max(pred), pred]
-                   for i, (label, pred)
-                   in enumerate(zip(y_test[:, 0], predictions))
-                   if label == np.argmax(pred)]
-        accuracy = len(correct) / len(x_test)
-
-        correct_imgs += correct
-        network_stats += [[model.name, accuracy, model.count_params()]]
-    return network_stats, correct_imgs
-
-
-def load_results():
-    with open('networks/results/untargeted_results.pkl', 'rb') as file:
-        untargeted = pickle.load(file)
-    with open('networks/results/targeted_results.pkl', 'rb') as file:
-        targeted = pickle.load(file)
-    return untargeted, targeted
-
-
-def checkpoint(results, targeted=False):
-    filename = 'targeted' if targeted else 'untargeted'
-
-    with open('networks/results/' + filename + '_results.pkl', 'wb') as file:
-        pickle.dump(results, file)
-
-
-def download_from_url(url, dst):
-    """
-    @param: url to download file
-    @param: dst place to put the file
-    """
-    # Streaming, so we can iterate over the response.
-    r = requests.get(url, stream=True)
-
-    with open(dst, 'wb') as f:
-        for data in tqdm(r.iter_content(), unit='B', unit_scale=True):
-            f.write(data)
-
-# def load_imagenet():
-#     with open('data/imagenet_class_index.json', 'r') as f:
-#         class_names = json.load(f)
-#     class_names = pd.DataFrame([[i,wid,name] for i,(wid,name) in class_names.items()], columns=['id', 'wid', 'text'])
-
-#     wid_to_id = {wid:int(i) for i,wid in class_names[['id', 'wid']].as_matrix()}
-
-#     imagenet_urls = pd.read_csv('data/imagenet_urls.txt', delimiter='\t', names=['label', 'url'])
-#     imagenet_urls['label'], imagenet_urls['id'] = zip(*imagenet_urls.label.apply(lambda x: x.split('_')))
-#     imagenet_urls.label = imagenet_urls.label.apply(lambda wid: wid_to_id[wid])
+def get_accuracy(labels, predictions):
+    count = 0
+    for prediction, label in zip(predictions, labels):
+        if np.argmax(prediction) == np.argmax(label):
+            count += 1
+    return 100*count/len(predictions)
