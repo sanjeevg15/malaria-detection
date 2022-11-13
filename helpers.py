@@ -5,8 +5,8 @@ import requests
 from tqdm import tqdm
 import numpy as np
 import numpy as np
-from keras.layers import DepthwiseConv2D
-from keras.losses import BinaryCrossentropy
+from tensorflow.keras.layers import DepthwiseConv2D
+from tensorflow.keras.losses import BinaryCrossentropy
 from PIL import Image
 from attackers import FGSMAttacker
 import tensorflow as tf
