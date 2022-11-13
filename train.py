@@ -12,7 +12,7 @@ if __name__ == '__main__':
     parser.add_argument('--root_dir', type=str, default='./data/cell_images/',
                         help='Root directory of the dataset')
     parser.add_argument('--model_name', type=str, default='3l',
-                        help='Which model to train. Options: vgg, resnet, 3l, 3lp')
+                        help='Which model to train. Options: vgg16, resnet, 3l, 3lp')
     parser.add_argument('--lr', type=float,
                         default=1e-3, help='Learning rate')
     parser.add_argument('--batch_size', type=int,
@@ -36,9 +36,9 @@ if __name__ == '__main__':
         100, 100), validation_split=0.2, subset="validation", seed=0)
 
     # Train the model and save the best weights
-    model_names = ['3l', '3lp', 'vgg', 'resnet']
+    model_names = ['3l', '3lp', 'vgg16', 'resnet']
     model_name_to_model = {'3l': model_3l,
-                           '3lp': model_3lp, 'vgg': model_v, 'resnet': model_r}
+                           '3lp': model_3lp, 'vgg16': model_v, 'resnet': model_r}
     model = model_name_to_model[model_name]
     model.compile(optimizer=Adam(learning_rate=learning_rate),
                   loss='categorical_crossentropy', metrics=['accuracy'])
