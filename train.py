@@ -1,40 +1,68 @@
-import copy
 import os
-import pickle
-import shutil
-
-from sklearn.cluster import KMeans
-
-import cv2
-import seaborn as sn
-import tensorflow as tf
-from attack_py import *
-from attackers import *
-from helper import *
-from keras import Model
-from keras.applications.resnet50 import ResNet50
-from keras.applications.vgg16 import VGG16
-from keras.callbacks import ModelCheckpoint
-from keras.datasets import mnist
-from keras.layers import (BatchNormalization, Conv2D, Dense, Dropout, Flatten,
-                          GlobalAveragePooling2D, Input, MaxPool2D)
-from keras.models import Sequential
+from helpers import *
 from keras.optimizers import Adam
 from keras.preprocessing import image_dataset_from_directory
-from keras.utils import np_utils
-from matplotlib import pyplot as plt
-from models import *
-from PIL import Image
-from tqdm import tqdm
+from models import model_3l, model_3lp, model_v, model_r
+from argparse import ArgumentParser
 
-from utils import *
-%matplotlib inline
 
-opt = Adam(learning_rate=1e-3, beta_1=0.99, beta_2=0.999)
-models = [model_3l, model_3lp, model_v, model_r]
+if __name__ == '__main__':
 
-for model, weight_file in zip(models, weight_files):
-    model(np.zeros([1,100,100,3]))
-    model.load_weights(weight_file)
-    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
-#     model.evaluate(validation_data)
+    parser = ArgumentParser()
+    parser.add_argument('--root_dir', type=str, default='./data/cell_images/',
+                        help='Root directory of the dataset')
+    parser.add_argument('--model_name', type=str, default='3l',
+                        help='Which model to train. Options: vgg, resnet, 3l, 3lp')
+    parser.add_argument('--lr', type=float,
+                        default=1e-3, help='Learning rate')
+    parser.add_argument('--batch_size', type=int,
+                        default=32, help='Batch size')
+    parser.add_argument('--epochs', type=int, default=10,
+                        help='Number of epochs')
+
+    args = parser.parse_args()
+
+    root_dir = args.root_dir
+    uninfected_folder = os.path.join(root_dir, 'Uninfected')
+    infected_folder = os.path.join(root_dir, 'Parasitized')
+    model_name = args.model_name
+    learning_rate = args.lr
+    batch_size = args.batch_size
+    epochs = args.epochs
+
+    training_data = image_dataset_from_directory(root_dir, batch_size=32, label_mode='categorical', image_size=(
+        100, 100), validation_split=0.2, subset="training", seed=0)
+    validation_data = image_dataset_from_directory(root_dir, batch_size=32, label_mode='categorical', image_size=(
+        100, 100), validation_split=0.2, subset="validation", seed=0)
+
+    # Train the model and save the best weights
+    model_names = ['3l', '3lp', 'vgg', 'resnet']
+    model_name_to_model = {'3l': model_3l,
+                           '3lp': model_3lp, 'vgg': model_v, 'resnet': model_r}
+    model = model_name_to_model[model_name]
+    model.compile(optimizer=Adam(learning_rate=learning_rate),
+                  loss='categorical_crossentropy', metrics=['accuracy'])
+    model.fit(training_data, validation_data=validation_data, epochs=epochs)
+
+    # Save weights in directory 'trained_weights'
+    if not os.path.exists('trained_model_weights'):
+        os.mkdir('trained_model_weights')
+    model.save_weights(os.path.join(
+        'trained_model_weights', model_name + '.hdf5'))
+
+    # Save the model in directory 'trained_models'
+    if not os.path.exists('trained_models'):
+        os.mkdir('trained_models')
+    model.save(os.path.join('trained_models', model_name + '.h5'))
+
+    # Save the model architecture in directory 'trained_models'
+    if not os.path.exists('trained_models'):
+        os.mkdir('trained_models')
+    with open(os.path.join('trained_models', model_name + '.json'), 'w') as f:
+        f.write(model.to_json())
+
+    # Save the model summary in directory 'trained_models'
+    if not os.path.exists('trained_models'):
+        os.mkdir('trained_models')
+    with open(os.path.join('trained_models', model_name + '_summary.txt'), 'w') as f:
+        model.summary(print_fn=lambda x: f.write(x + '\n'))
