@@ -1,7 +1,7 @@
 import os
 from helpers import *
-from keras.optimizers import Adam
-from keras.preprocessing import image_dataset_from_directory
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.preprocessing import image_dataset_from_directory
 from models import model_3l, model_3lp, model_v, model_r
 from argparse import ArgumentParser
 

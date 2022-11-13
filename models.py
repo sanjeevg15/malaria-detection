@@ -1,9 +1,9 @@
-from keras.models import Sequential
-from keras import Model
-from keras.layers import Conv2D, BatchNormalization, MaxPool2D, Flatten, Dropout, Dense, Input, GlobalAveragePooling2D
+from tensorflow.keras.models import Sequential
+from tensorflow.keras import Model
+from tensorflow.keras.layers import Conv2D, BatchNormalization, MaxPool2D, Flatten, Dropout, Dense, Input, GlobalAveragePooling2D
+from tensorflow.keras.applications.vgg16 import VGG16
+from tensorflow.keras.applications.resnet50 import ResNet50
 from utils import gaussian_blur
-from keras.applications.vgg16 import VGG16
-from keras.applications.resnet50 import ResNet50
 
 # Build a deep neural network model
 model_3l = Sequential()
