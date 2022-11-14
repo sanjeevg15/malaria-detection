@@ -18,25 +18,9 @@ We test the robustness of each of the models to random speckle noise. Speckle no
 $$\mathbf{N} = \mathbf{I} + \mathbf{I} \cdot \mathbf{G}$$
 where $\mathbf{I}$ is the original image, $\mathbf{G}$ is a matrix of values from a Gaussian distribution, and $\mathbf{N}$ is the noisy image. The noisy image is then passed through each of the models and the models confidence value for class 'Parasitic' is recorded. This is averaged over ~250 images. The results are shown in Figure 2.
 
-<figure>
-    <img src='figures/noise_study1.png' alt='missing' width="20%"/>
-    <!-- <figcaption>.</figcaption> -->
-</figure>
-<figure>
-    <img src='figures/noise_study2.png' alt='missing' width="20%"/>
-    <figcaption></figcaption>
-</figure>
-
-Solarized dark             |  Solarized Ocean
-:-------------------------:|:-------------------------:
-![](./figures/noise_study1.png "title-1" =50%x)  |  ![](,.figures/noise_study2.png)
-
-
-<!-- ![alt text](figures/noise_study1.png)
-**
-
+![alt text](figures/noise_study1.png) 
 ![alt text](figures/noise_study2.png)
-** -->
+*Figure 2: Model Predictions on a Speckle Noise Corrupted Uninfected Image. y-axis represents the probability of the model predicting the image to be parasitic. The x-axis represents the standard deviation of the Gaussian distribution used to generate the speckle noise*
 
 ## Usage
 
