@@ -1,14 +1,22 @@
 # Adversarially Robust Model for Malaria Detection
 
-This repository utilizes an ensemble of three Convolutional Neural Networks to predict whether or not a histopathological image of a cell is malarial. The diversity of the individual models provides a layer of defense against adversarial attacks using the FGSM technique. The dataset used for this study is a collection of 27588 segmented cell images acquired at Chittagong Medical College Hospital, Bangladesh. Additional details about the dataset can be found [here](https://lhncbc.nlm.nih.gov/LHC-downloads/downloads.html#malaria-datasets)
+This repository utilizes an ensemble of three Convolutional Neural Networks to predict whether or not a histopathological image of a cell is malarial. The diversity of the individual models provides a layer of defense against adversarial attacks using the FGSM technique. The dataset used for this study[1] is a collection of 27588 segmented cell images acquired at Chittagong Medical College Hospital, Bangladesh. Additional details about the dataset can be found [here](https://lhncbc.nlm.nih.gov/LHC-downloads/downloads.html#malaria-datasets)
 
 ## Description
 
-Three models, as described below, were trained on the Malarial Cell Images dataset. The models were then combined into an ensemble to provide a layer of defense against adversarial attacks. The models were trained using the Adam optimizer with a learning rate of 0.001. The models were trained for 10 epochs with a batch size of 32. The models were trained on a Kaggle Notebook GPU.
+Three models, as described below, were trained on the Malarial Cell Images dataset. The models were then combined into an ensemble to provide a layer of defense against adversarial attacks. The predictions of the three models were combined based on the majority vote. The three models are as follows:
 
-1. Model 1: A simple 3-layered CNN with shown in Figure 1. This model will be refered to as "MalariaNet" in future references.
-2. Model 2: A resnet50 model with the last layer removed and replaced with a fully connected layer with 2 outputs. This model will be refered to as "ResNet50" in future references.
-3. Model 3: A VGG16 model with the last layer removed and replaced with a fully connected layer with 2 outputs. This model will be refered to as "VGG16" in future references.
+1. Model 1: A simple 3-layered CNN with architecture as shown in Figure 1. This model will be refered to as "MalariaNet" in future references.
+2. Model 2: A ResNet50[2] model with the last layer removed and replaced with a fully connected layer with 2 outputs. This model will be refered to as "ResNet50" in future references.
+3. Model 3: A VGG16[3] model with the last layer removed and replaced with a fully connected layer with 2 outputs. This model will be refered to as "VGG16" in future references.
+
+![MalariaNet Network Architecture](figures/malaria_net.png)
+*Figure 1: Architecture of MalariaNet*
+
+## Usage
+
+1. Clone the repository : `git clone  https://github.com/sanjeevg15/malaria-detection.git`
+2. To train a model, run : `python train.py -root_dir <path to dataset> -model_name <name of model> -epochs <number of epochs> -batch_size <batch size> -lr <learning rate>`
 
 ## Experiments & Results
 
@@ -18,23 +26,23 @@ We test the robustness of each of the models to random speckle noise. Speckle no
 $$\mathbf{N} = \mathbf{I} + \mathbf{I} \cdot \mathbf{G}$$
 where $\mathbf{I}$ is the original image, $\mathbf{G}$ is a matrix of values from a Gaussian distribution, and $\mathbf{N}$ is the noisy image. We vary the standard deviation of the Gaussian in the above expression increments and the resulting noisy images are passed through one model at a time and the confidence value for class 'Parasitic' is recorded. This is averaged over ~250 images. The results are shown in Figure 2.
 
-![alt text](figures/noise_study1.png)
-![alt text](figures/noise_study2.png)
+![Noise robustness study](figures/noise_study1.png)
+![Noise robustness study](figures/noise_study2.png)
 
 *Figure 2: Model Predictions on a Speckle Noise Corrupted Uninfected Image. y-axis represents the probability of the model predicting the image to be parasitic. The x-axis represents the standard deviation of the Gaussian distribution used to generate the speckle noise*
 
 ## Experiment 2: Robustness to Adversarial Attacks
 
-Adversarial attacks are a class of attacks that are designed to fool a machine learning model into misclassifying an image. These attacks are designed to be imperceptible to the human eye. The FGSM attack is a simple attack that is based on the gradient of the loss function with respect to the input image. The FGSM attack is defined mathematically as:
+Adversarial attacks are a class of attacks that are designed to fool a machine learning model into misclassifying an image. These attacks are designed to be imperceptible to the human eye. The FGSM attack is a simple attack that is based on the gradient of the loss function with respect to the input image[4]. The FGSM attack is defined mathematically as:
 $$\mathbf{X} = \mathbf{X} + \epsilon \cdot sign(\nabla_{\mathbf{X}} J(\mathbf{X}, \mathbf{y}))$$
 where $\mathbf{X}$ is the original image, $\mathbf{y}$ is the true label of the image, $\epsilon$ is the perturbation size, and $J$ is the loss function. For each model, we obtain an 'adversarial' dataset which is designed to fool that model into misclassifying the image. These datasets will be referred to as $D_{Resnet50}$, $D_{VGG16}$, and $D_{MalariaNet}$ where the subscript denotes the model that the dataset is designed to fool.
 Figure 3. We then evaluate all three models on the adversarial dataset and record the accuracy. Thus, three models are evaluated on three datasets each. The results are shown in Figure 3. The results show that the ensemble of models is more robust to adversarial attacks than any individual model.
 
-![alt text](figures/acc.png)
-![alt text](figures/mean_loss.png)
-![alt text](figures/median_loss.png)
+![Accuracy](figures/acc.png)
+![Mean Loss](figures/mean_loss.png)
+![Medan Loss](figures/median_loss.png)
 
-*Figure 3: Accuracy, Mean Loss and Median Loss of the three models on the original dataset and the adversarial datasets. The models on the vertical axis are the attacked models and the models on the horizontal axis are the models on which evaluation is performed. For example, the cell in the first row and second column represents the accuracy of VGG16 on the adversarial dataset generated by an adversarial (FGSM) attack on MalariaNet.*
+*Figure 3: Top to Bottom - Accuracy, Mean Loss and Median Loss of the three models on the original dataset and the adversarial datasets. The models on the vertical axis are the attacked models and the models on the horizontal axis are the models on which evaluation is performed. For example, the cell in the first row and second column represents the accuracy of VGG16 on the adversarial dataset generated by an adversarial (FGSM) attack on MalariaNet.*
 Model E denotes the ensemble model.
 
 ## Experiment 3: Cosine Similarity between Adversarial Directions
@@ -55,14 +63,12 @@ The cosine similarity between the adversarial directions of the three models is 
 
 As can be observed from the table, the cosine similarity between the adversarial directions is slightly higher for the VGG16 and ResNet50 models. This is likely due to the fact that both the models have been pre-trained on the same dataset (ImageNet). This is also reflected in the fact that the performance of VGG16 on $D_{ResNet50}$ is and the performance of ResNet50 on $D_{VGG16}$ is slightly lower than the other values in the table.
 
-## Usage
-
-1. Clone the repository : `git clone  https://github.com/sanjeevg15/malaria-detection.git`
-2. To train a model, run : `python train.py -root_dir <path to dataset> -model_name <name of model> -epochs <number of epochs> -batch_size <batch size> -lr <learning rate>`
-
 ## References
 
 1. [Malaria Detection Dataset](https://www.kaggle.com/iarunava/cell-images-for-detecting-malaria)
+2. [Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385)
+3. [Very Deep Convolutional Networks for Large-Scale Image Recognition](https://arxiv.org/abs/1409.1556)
+4. [Explaining and Harnessing Adversarial Examples](https://arxiv.org/abs/1412.6572)
 
 ## Acknowledgements
 
