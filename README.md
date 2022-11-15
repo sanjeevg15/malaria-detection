@@ -10,7 +10,7 @@ Three models, as described below, were trained on the Malarial Cell Images datas
 2. Model 2: A ResNet50[2] model with the last layer removed and replaced with a fully connected layer with 2 outputs. This model will be refered to as "ResNet50" in future references.
 3. Model 3: A VGG16[3] model with the last layer removed and replaced with a fully connected layer with 2 outputs. This model will be refered to as "VGG16" in future references.
 
-![MalariaNet Network Architecture](figures/malaria_net.png)
+![MalariaNet Network Architecture](figures/malarianet.png)
 *Figure 1: Architecture of MalariaNet*
 
 ## Usage
