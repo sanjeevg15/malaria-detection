@@ -3,17 +3,18 @@ from helpers import add_noise
 import numpy as np
 from tqdm import tqdm
 from argparse import ArgumentParser
-from models import *
+from models import model_3l, model_3lp, model_v, model_r
+from tensorflow.keras.preprocessing import image_dataset_from_directory
 
 # parser = ArgumentParser(description='Noise study')
 # parser.add_argument('model_name', metavar='model', type=str, nargs=1)
 
-def noise_study(model, data, class_index=1, n_images=10, step_size=0.01,num_steps=20, class_names=['P','U'],data_root='./MalariaDataset'):
+def noise_study(model, data, class_index=1, n_images=10, step_size=0.01,num_steps=20, class_names=['P','U'],data_root='data/cell_images/', save_dir='results/'):
     '''
         Adds noise gradually to the images in the dataset and measures average model confidence for the true class in the dataset
 
         ====== ARGS ======
-        model() : Model whose performance you want to check for robustness to noise
+        model(keras.model.Model): Model to evaluate for robustness to noise
         data(tuple): (X,y) where X is an np.ndarray of size mxn and y is the array containing labels for images in X
         class_index (int): Indicates which class to sample images from
         n_images (int) : No. of images to sample
@@ -60,7 +61,32 @@ def noise_study(model, data, class_index=1, n_images=10, step_size=0.01,num_step
             plt.savefig(save_path, bbox_inches='tight', facecolor='w')
     return graphs
 
-# if __name__=='__main__':
-#     model = model_3lp
-#     data = 
-#     noise_study(model, data)
+if __name__=='__main__':
+    parser = ArgumentParser(description='Noise study')
+    parser.add_argument('model_name', type=str, nargs=1)
+    parser.add_argument('data_root', type=str, nargs=1, default='./data/cell_images')
+    parser.add_argument('save_dir', type=str, nargs=1, default='./results/')
+
+    args = parser.parse_args()
+    model_name_to_model = {
+        'model_3l': model_3l,
+        'model_3lp': model_3lp,
+        'model_v': model_v,
+        'model_r': model_r
+    }
+
+    model = model_name_to_model[args.model_name]
+
+    # Create image dataset from data_root
+    data = image_dataset_from_directory(args.data_root, image_size=(100,100), batch_size=32, shuffle=True, seed=42)
+    
+
+
+
+    
+
+    
+
+
+
+
