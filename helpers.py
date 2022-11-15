@@ -24,6 +24,9 @@ def add_noise(noise_type,image,params=[0,0.1]):
     ----------
     image : ndarray
         Input image data. Will be converted to float.
+    params: list
+        List of parameters for the noise function
+        
     mode : str
         One of the following strings, selecting the type of noise to add:
 
